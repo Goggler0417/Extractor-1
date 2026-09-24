@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Tagmark Extractor v1.05</title>
+<title>Tagmark Extractor v1.07</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#171717;background:#f5f5f7}*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}.app{max-width:1100px;margin:0 auto;padding:20px}.head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.head h1{margin:0 0 4px;font-size:24px}.muted{color:#666;font-size:13px}.card{background:white;border:1px solid #ddd;border-radius:14px;padding:16px;margin-top:14px;box-shadow:0 1px 3px #0000000b}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.grow{flex:1}.btn{border:1px solid #ccc;background:#fff;border-radius:9px;padding:9px 13px}.btn.primary{background:#171717;color:#fff;border-color:#171717}.btn:disabled{opacity:.45;cursor:not-allowed}.file{display:inline-flex;align-items:center;gap:8px}.drop{border:2px dashed #bbb;border-radius:12px;padding:22px;text-align:center}.drop.drag{border-color:#333;background:#fafafa}.stat{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.stat div{background:#f7f7f7;border-radius:10px;padding:10px}.stat b{display:block;font-size:20px}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{padding:8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}.pill{display:inline-block;padding:3px 7px;border-radius:99px;background:#eee;font-size:12px}.ok{background:#e9f7ed}.bad{background:#fdecec}.warn{background:#fff6db}.pre{white-space:pre-wrap;word-break:break-word;background:#111;color:#eee;padding:12px;border-radius:10px;max-height:300px;overflow:auto;font-size:12px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:13px;color:#555}.field select,.field input,.field textarea{border:1px solid #ccc;border-radius:8px;padding:9px;background:#fff}.small{font-size:12px}.hidden{display:none!important}@media(max-width:700px){.app{padding:12px}.grid2{grid-template-columns:1fr}.stat{grid-template-columns:repeat(2,1fr)}.head{flex-direction:column}.table th:nth-child(4),.table td:nth-child(4){display:none}}
 </style>
@@ -10,7 +10,7 @@
 <body>
 <div class="app">
   <div class="head">
-    <div><h1>Tagmark Extractor <span class="pill">v1.05</span></h1><div class="muted">Chrome 북마크 파일 → 웹페이지 일괄 추출 → Tagmark 신형 DB JSON</div></div>
+    <div><h1>Tagmark Extractor <span class="pill">v1.07</span></h1><div class="muted">Chrome 북마크 파일 → 웹페이지 일괄 추출 → Tagmark 신형 DB JSON</div></div>
     <button class="btn" id="downloadBtn" disabled>DB JSON 저장</button>
   </div>
 
@@ -39,7 +39,7 @@
     <div style="overflow:auto;margin-top:12px"><table class="table"><thead><tr><th>제목</th><th>URL</th><th>상태</th><th>사이트/Profile</th><th>오류</th></tr></thead><tbody id="results"></tbody></table></div>
   </div>
 
-  <div class="card"><h3>사이트별 추출 프로필 편집기 <span class="pill">v1.05</span></h3>
+  <div class="card"><h3>사이트별 추출 프로필 편집기 <span class="pill">v1.07</span></h3>
 <p class="small">사이트마다 원하는 Tagmark 필드와 추출 위치를 지정합니다. 같은 필드에 규칙을 여러 개 두면 위에서부터 fallback 후보로 사용됩니다.</p>
 <div class="grid2"><div class="field"><label>프로필 이름</label><input id="profName" placeholder="예: YouTube custom"></div><div class="field"><label>도메인 (쉼표 구분)</label><input id="profDomains" placeholder="youtube.com, youtu.be"></div></div>
 <div class="row" style="margin-top:10px"><button class="btn" id="addRuleBtn">+ 추출 규칙</button><button class="btn primary" id="saveProfBtn">프로필 저장</button><button class="btn" id="newProfBtn">새 프로필</button><select id="profSelect"><option value="">저장된 프로필</option></select><button class="btn" id="exportProfBtn">프로필 JSON 저장</button><label class="btn file">프로필 JSON 불러오기<input id="importProfFile" type="file" accept=".json" hidden></label></div>
@@ -49,7 +49,7 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-const VERSION='v1.03';
+const VERSION='v1.07';
 let bookmarks=[]; let db=null; let results=[];
 let customProfiles=[];
 function loadCustomProfiles(){try{customProfiles=JSON.parse(localStorage.getItem('tagmark.customProfiles.v104')||'[]');if(!Array.isArray(customProfiles))customProfiles=[]}catch{customProfiles=[]}renderProfileSelect()}
@@ -124,9 +124,46 @@ function parseChromeHtml(text){const doc=new DOMParser().parseFromString(text,'t
   });
   return dedupeBookmarks(out)
 }
-async function parseDocx(file){const zip=await JSZip.loadAsync(file);const xml=await zip.file('word/document.xml').async('text');const relxml=zip.file('word/_rels/document.xml.rels')?await zip.file('word/_rels/document.xml.rels').async('text'):'';const xd=new DOMParser().parseFromString(xml,'application/xml');const rd=new DOMParser().parseFromString(relxml||'<Relationships/>','application/xml');const rels={};Array.from(rd.getElementsByTagName('Relationship')).forEach(r=>{rels[r.getAttribute('Id')]=r.getAttribute('Target')});const out=[];const links=Array.from(xd.getElementsByTagNameNS('*','hyperlink'));for(const h of links){const rid=h.getAttribute('r:id')||h.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');const target=rels[rid];const title=[...h.getElementsByTagNameNS('*','t')].map(x=>x.textContent).join('').trim();if(target&&/^https?:/i.test(target))out.push({title:title||target,url:target,folderPath:''})}return dedupeBookmarks(out)}
+async function parseDocx(file){
+  // DOCX is a ZIP. Parse the two relevant XML files as text instead of relying on
+  // browser XML NodeList/HTMLCollection iteration, which is inconsistent on iOS WebKit.
+  const zip=await JSZip.loadAsync(file);
+  const docEntry=zip.file('word/document.xml');
+  if(!docEntry) throw new Error('DOCX 내부에서 word/document.xml을 찾을 수 없습니다.');
+  const xml=await docEntry.async('text');
+  const relEntry=zip.file('word/_rels/document.xml.rels');
+  const relxml=relEntry?await relEntry.async('text'):'';
+  const decodeXml=s=>String(s||'').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+  const stripTags=s=>decodeXml(String(s||'').replace(/<[^>]*>/g,'')).replace(/\s+/g,' ').trim();
+  const rels={};
+  const relRe=/<Relationship\b([^>]*?)\/?\s*>/gi; let rm;
+  while((rm=relRe.exec(relxml))){
+    const attrs=rm[1];
+    const id=(attrs.match(/\bId\s*=\s*["']([^"']+)["']/i)||[])[1];
+    const target=(attrs.match(/\bTarget\s*=\s*["']([^"']+)["']/i)||[])[1];
+    const type=(attrs.match(/\bType\s*=\s*["']([^"']+)["']/i)||[])[1]||'';
+    if(id&&target&&/\/hyperlink$/i.test(type)) rels[id]=decodeXml(target);
+  }
+  const out=[];
+  const linkRe=/<w:hyperlink\b([^>]*)>([\s\S]*?)<\/w:hyperlink>/gi; let lm;
+  while((lm=linkRe.exec(xml))){
+    const attrs=lm[1], body=lm[2];
+    const rid=(attrs.match(/\br:id\s*=\s*["']([^"']+)["']/i)||[])[1];
+    const target=rels[rid];
+    if(!target||!/^https?:\/\//i.test(target)) continue;
+    let title=''; const tRe=/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi; let tm;
+    while((tm=tRe.exec(body))) title+=decodeXml(tm[1]);
+    title=title.replace(/\s+/g,' ').trim();
+    out.push({title:title||target,url:target,folderPath:''});
+  }
+  if(!out.length && Object.keys(rels).length){
+    // Last-resort: preserve URLs even if the document uses an unusual hyperlink wrapper.
+    for(const target of Object.values(rels)) if(/^https?:\/\//i.test(target)) out.push({title:target,url:target,folderPath:''});
+  }
+  return dedupeBookmarks(out);
+}
 function dedupeBookmarks(xs){const m=new Map();for(const x of xs){const u=norm(x.url);if(/^https?:\/\//i.test(u)&&!m.has(u))m.set(u,{title:norm(x.title)||u,url:u,folderPath:norm(x.folderPath||'')})}return [...m.values()]}
-async function readBookmarkFile(file){const name=file.name.toLowerCase();const text=await file.text();if(name.endsWith('.docx'))return parseDocx(file);if(name.endsWith('.html')||name.endsWith('.htm'))return parseChromeHtml(text);return parseTxt(text)}
+async function readBookmarkFile(file){const name=file.name.toLowerCase();if(name.endsWith('.docx'))return parseDocx(file);const text=await file.text();if(name.endsWith('.html')||name.endsWith('.htm'))return parseChromeHtml(text);return parseTxt(text)}
 function renderResults(){const tb=$('results');tb.innerHTML=results.map(r=>`<tr><td>${escapeHtml(r.title||r.url)}</td><td><a href="${escapeHtml(r.finalUrl||r.url)}" target="_blank" rel="noreferrer">${escapeHtml(r.url)}</a></td><td><span class="pill ${r.status==='success'||r.status==='added'?'ok':r.status==='duplicate'?'warn':'bad'}">${escapeHtml(r.status)}</span></td><td>${escapeHtml(r.profile||'')}</td><td>${escapeHtml(r.error||'')}</td></tr>`).join('');$('countAll').textContent=results.length;$('countOk').textContent=results.filter(x=>x.status==='added'||x.status==='success').length;$('countDup').textContent=results.filter(x=>x.status==='duplicate').length;$('countErr').textContent=results.filter(x=>x.status==='error').length}
 async function start(){const p=currentPage(),tab=currentTab();if(!p||!tab||!bookmarks.length)return;results=[];renderResults();const seen=existingUrls(p,tab);const items=bookmarks.filter(x=>!$('dedupe').checked||!seen.has(x.url));if($('dedupe').checked && items.length===0){$('progress').textContent='모든 항목이 기존 URL과 중복됩니다.';return}
  let done=0;const batchSize=10;for(let i=0;i<items.length;i+=batchSize){const batch=items.slice(i,i+batchSize);$('progress').textContent=`추출 중… ${done}/${items.length}`;try{const res=await fetch('/api/extract',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:batch.map(x=>({url:x.url,title:x.title})),customProfiles})});const json=await res.json();if(!res.ok)throw new Error(json.error||`HTTP ${res.status}`);for(const r of json.results){const source=bookmarks.find(x=>x.url===r.url)||{};if(r.status==='success'){if($('dedupe').checked&&seen.has(r.finalUrl||r.url)){r.status='duplicate'}else{if($('fallbackTitle').checked&&(!r.data?.title||r.data.title===r.data.url))r.data.title=source.title;r.folderPath=source.folderPath;const rec=assignBookmark(p,tab,r);p.data.bookmarks.push(rec);const uf=fieldFor(tab,'url');if(uf&&rec.data[uf.id])seen.add(rec.data[uf.id]);r.status='added'}}results.push(r)}}catch(e){for(const x of batch)results.push({url:x.url,title:x.title,status:'error',error:e.message})}done+=batch.length;renderResults();}
@@ -134,13 +171,13 @@ db.activePageId=p.id;$('progress').textContent=`완료: ${done}/${items.length}`
 $('bookmarkFile').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{bookmarks=await readBookmarkFile(f);$('bookmarkInfo').textContent=`${f.name}: ${bookmarks.length.toLocaleString()}개 URL을 찾았습니다.`;updateSelectors()}catch(err){$('bookmarkInfo').textContent='읽기 실패: '+err.message}});
 $('dbFile').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{db=normalizeDB(JSON.parse(await f.text()));$('dbInfo').textContent=`${f.name}: ${db.pages.length}개 Page`;updateSelectors()}catch(err){$('dbInfo').textContent='DB 읽기 실패: '+err.message}});
 $('pageSelect').addEventListener('change',updateSelectors);$('tabSelect').addEventListener('change',()=>{});$('startBtn').addEventListener('click',start);
-$('downloadBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tagmark-extracted-v1.05.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
+$('downloadBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tagmark-extracted-v1.07.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 const drop=$('drop');['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',async ev=>{const f=ev.dataTransfer.files?.[0];if(!f)return;try{bookmarks=await readBookmarkFile(f);$('bookmarkInfo').textContent=`${f.name}: ${bookmarks.length.toLocaleString()}개 URL을 찾았습니다.`;updateSelectors()}catch(err){$('bookmarkInfo').textContent='읽기 실패: '+err.message}});
 $('addRuleBtn').addEventListener('click',()=>ruleRow());
 $('newProfBtn').addEventListener('click',()=>fillProfile({}));
 $('saveProfBtn').addEventListener('click',()=>{const p=profileFromEditor();const i=customProfiles.findIndex(x=>x.id===p.id||x.name===p.name);if(i>=0)customProfiles[i]=p;else customProfiles.push(p);saveCustomProfiles();$('profSelect').value=String(customProfiles.findIndex(x=>x.id===p.id));alert('사이트 프로필을 저장했습니다.')});
 $('profSelect').addEventListener('change',e=>{if(e.target.value!=='')fillProfile(customProfiles[Number(e.target.value)])});
-$('exportProfBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({version:'v1.05',profiles:customProfiles},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tagmark-extractor-profiles-v1.05.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
+$('exportProfBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({version:'v1.07',profiles:customProfiles},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tagmark-extractor-profiles-v1.07.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 $('importProfFile').addEventListener('change',async e=>{try{const j=JSON.parse(await e.target.files[0].text());const ps=Array.isArray(j)?j:j.profiles;if(!Array.isArray(ps))throw new Error('profiles 배열이 없습니다.');customProfiles=ps;saveCustomProfiles();alert(`${ps.length}개 프로필을 불러왔습니다.`)}catch(err){alert('불러오기 실패: '+err.message)}});
 $('testProfBtn').addEventListener('click',async()=>{const url=$('testUrl').value.trim();if(!url)return;const out=$('testOut');out.classList.remove('hidden');out.textContent='테스트 중…';try{const res=await fetch('/api/extract',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:[{url,title:'테스트'}],profileOverride:profileFromEditor()})});const j=await res.json();out.textContent=JSON.stringify(j,null,2)}catch(e){out.textContent='실패: '+e.message}});
 db=blankDB();updateSelectors();loadCustomProfiles();ruleRow();
