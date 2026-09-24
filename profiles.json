@@ -1,0 +1,40 @@
+{
+  "profiles": [
+    {
+      "id": "youtube",
+      "domains": ["youtube.com", "youtu.be", "m.youtube.com"],
+      "use_generic": true,
+      "fields": {
+        "title": [{"type":"meta","key":"og:title"},{"type":"title"}],
+        "url": [{"type":"canonical"},{"type":"url"}],
+        "description": [{"type":"meta","key":"og:description"},{"type":"meta","key":"description","attr":"name"}],
+        "image": [{"type":"meta","key":"og:image"}],
+        "published": [{"type":"meta","key":"article:published_time"}],
+        "keywords": [{"type":"meta","key":"keywords","attr":"name","split":",|;"}]
+      },
+      "profileRules": [
+        {"field":"profiles","rules":[{"type":"jsonld","path":"author.name"}]}
+      ],
+      "tagRules": [
+        {"field":"tags","rules":[{"type":"meta","key":"keywords","attr":"name","split":",|;"}]}
+      ]
+    },
+    {
+      "id": "article",
+      "domains": ["*"],
+      "use_generic": true,
+      "fields": {
+        "title": [{"type":"meta","key":"og:title"},{"type":"title"}],
+        "url": [{"type":"canonical"},{"type":"url"}],
+        "description": [{"type":"meta","key":"og:description"},{"type":"meta","key":"description","attr":"name"}],
+        "image": [{"type":"meta","key":"og:image"}],
+        "published": [{"type":"meta","key":"article:published_time"}],
+        "author": [{"type":"meta","key":"author","attr":"name"}],
+        "keywords": [{"type":"meta","key":"keywords","attr":"name","split":",|;"}]
+      },
+      "tagRules": [
+        {"field":"tags","rules":[{"type":"meta","key":"keywords","attr":"name","split":",|;"}]}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "tagmark-extractor-v1.04",
+  "version": "1.0.2",
+  "private": true,
+  "engines": { "node": "24.x" },
+  "dependencies": { "cheerio": "^1.1.2" }
+}
