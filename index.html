@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tagmark Extractor v1.05</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#171717;background:#f5f5f7}*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}.app{max-width:1100px;margin:0 auto;padding:20px}.head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.head h1{margin:0 0 4px;font-size:24px}.muted{color:#666;font-size:13px}.card{background:white;border:1px solid #ddd;border-radius:14px;padding:16px;margin-top:14px;box-shadow:0 1px 3px #0000000b}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.grow{flex:1}.btn{border:1px solid #ccc;background:#fff;border-radius:9px;padding:9px 13px}.btn.primary{background:#171717;color:#fff;border-color:#171717}.btn:disabled{opacity:.45;cursor:not-allowed}.file{display:inline-flex;align-items:center;gap:8px}.drop{border:2px dashed #bbb;border-radius:12px;padding:22px;text-align:center}.drop.drag{border-color:#333;background:#fafafa}.stat{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.stat div{background:#f7f7f7;border-radius:10px;padding:10px}.stat b{display:block;font-size:20px}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{padding:8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}.pill{display:inline-block;padding:3px 7px;border-radius:99px;background:#eee;font-size:12px}.ok{background:#e9f7ed}.bad{background:#fdecec}.warn{background:#fff6db}.pre{white-space:pre-wrap;word-break:break-word;background:#111;color:#eee;padding:12px;border-radius:10px;max-height:300px;overflow:auto;font-size:12px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:13px;color:#555}.field select,.field input,.field textarea{border:1px solid #ccc;border-radius:8px;padding:9px;background:#fff}.small{font-size:12px}.hidden{display:none!important}@media(max-width:700px){.app{padding:12px}.grid2{grid-template-columns:1fr}.stat{grid-template-columns:repeat(2,1fr)}.head{flex-direction:column}.table th:nth-child(4),.table td:nth-child(4){display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div><h1>Tagmark Extractor <span class="pill">v1.05</span></h1><div class="muted">Chrome 북마크 파일 → 웹페이지 일괄 추출 → Tagmark 신형 DB JSON</div></div>
+    <button class="btn" id="downloadBtn" disabled>DB JSON 저장</button>
+  </div>
+
+  <div class="card">
+    <h3>1. 북마크 목록 입력</h3>
+    <div id="drop" class="drop">Chrome에서 내보낸 <b>.html</b>, <b>.txt</b>, <b>.docx</b> 파일을 선택하거나 이곳에 놓으세요.<br><span class="muted">HTML은 Chrome 북마크 폴더도 읽습니다.</span><div style="margin-top:12px"><label class="btn primary file">파일 선택<input id="bookmarkFile" type="file" accept=".html,.htm,.txt,.docx,text/plain,text/html,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label></div></div>
+    <div id="bookmarkInfo" class="muted" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h3>2. Tagmark DB 템플릿 <span class="muted">선택 사항</span></h3>
+    <p class="small">현재 사용 중인 Tagmark v2.04 백업 JSON을 넣으면 기존 Page/Schema를 그대로 유지합니다. 넣지 않으면 기본 신형 Schema로 새 DB를 만듭니다.</p>
+    <div class="row"><label class="btn file">DB JSON 선택<input id="dbFile" type="file" accept=".json,application/json" hidden></label><span id="dbInfo" class="muted">아직 없음 — 기본 Schema 사용</span></div>
+    <div class="grid2" style="margin-top:12px"><div class="field"><label>대상 Page</label><select id="pageSelect"></select></div><div class="field"><label>대상 북마크 Tab</label><select id="tabSelect"></select></div></div>
+  </div>
+
+  <div class="card">
+    <h3>3. 추출</h3>
+    <div class="row"><button id="startBtn" class="btn primary" disabled>추출 시작</button><label class="small"><input id="dedupe" type="checkbox" checked> 기존 URL 중복 건너뛰기</label><label class="small"><input id="fallbackTitle" type="checkbox" checked> 사이트 제목 실패 시 원래 Chrome 제목 사용</label></div>
+    <div id="progress" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <h3>결과</h3>
+    <div class="stat"><div><b id="countAll">0</b>전체</div><div><b id="countOk">0</b>성공</div><div><b id="countDup">0</b>중복</div><div><b id="countErr">0</b>실패</div></div>
+    <div style="overflow:auto;margin-top:12px"><table class="table"><thead><tr><th>제목</th><th>URL</th><th>상태</th><th>사이트/Profile</th><th>오류</th></tr></thead><tbody id="results"></tbody></table></div>
+  </div>
+
+  <div class="card"><h3>사이트별 추출 프로필 편집기 <span class="pill">v1.05</span></h3>
+<p class="small">사이트마다 원하는 Tagmark 필드와 추출 위치를 지정합니다. 같은 필드에 규칙을 여러 개 두면 위에서부터 fallback 후보로 사용됩니다.</p>
+<div class="grid2"><div class="field"><label>프로필 이름</label><input id="profName" placeholder="예: YouTube custom"></div><div class="field"><label>도메인 (쉼표 구분)</label><input id="profDomains" placeholder="youtube.com, youtu.be"></div></div>
+<div class="row" style="margin-top:10px"><button class="btn" id="addRuleBtn">+ 추출 규칙</button><button class="btn primary" id="saveProfBtn">프로필 저장</button><button class="btn" id="newProfBtn">새 프로필</button><select id="profSelect"><option value="">저장된 프로필</option></select><button class="btn" id="exportProfBtn">프로필 JSON 저장</button><label class="btn file">프로필 JSON 불러오기<input id="importProfFile" type="file" accept=".json" hidden></label></div>
+<div style="overflow:auto;margin-top:10px"><table class="table"><thead><tr><th>Tagmark 필드</th><th>방식</th><th>Selector / Key / Path</th><th>추가 옵션</th><th></th></tr></thead><tbody id="ruleRows"></tbody></table></div>
+<div class="row" style="margin-top:12px"><input id="testUrl" class="grow" style="min-width:260px;border:1px solid #ccc;border-radius:8px;padding:9px" placeholder="테스트할 URL"><button class="btn primary" id="testProfBtn">이 프로필로 테스트</button></div><pre id="testOut" class="pre hidden"></pre>
+<p class="small muted">지원: CSS text, attribute, meta, JSON-LD path, title, canonical URL, 현재 URL, regex. JS 렌더링/AI fallback은 다음 단계용 인터페이스를 유지합니다.</p></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+const VERSION='v1.03';
+let bookmarks=[]; let db=null; let results=[];
+let customProfiles=[];
+function loadCustomProfiles(){try{customProfiles=JSON.parse(localStorage.getItem('tagmark.customProfiles.v104')||'[]');if(!Array.isArray(customProfiles))customProfiles=[]}catch{customProfiles=[]}renderProfileSelect()}
+function saveCustomProfiles(){localStorage.setItem('tagmark.customProfiles.v104',JSON.stringify(customProfiles));renderProfileSelect()}
+function targetFields(){const t=currentTab();return t?.schema||[]}
+function ruleRow(rule={}){const tr=document.createElement('tr');const fields=targetFields();tr.innerHTML=`<td><select class="rtarget">${fields.map(f=>`<option value="${escapeHtml(f.id)}" ${rule.target===f.id?'selected':''}>${escapeHtml(f.name)} · ${escapeHtml(f.type)}</option>`).join('')}</select></td><td><select class="rtype">${['css','attribute','meta','jsonld','title','canonical','url','regex'].map(x=>`<option ${rule.type===x?'selected':''}>${x}</option>`).join('')}</select></td><td><input class="rvalue" value="${escapeHtml(rule.value||rule.selector||rule.key||rule.path||'')}" placeholder="예: h1 / og:title / author.name"></td><td><input class="ropt" value="${escapeHtml(rule.option||'')}" placeholder="attribute=href; split=,; jsonType=Article"></td><td><button class="btn rdel">삭제</button></td>`;tr.querySelector('.rdel').onclick=()=>tr.remove();$('ruleRows').appendChild(tr)}
+function profileFromEditor(){const fields={};for(const tr of $('ruleRows').children){const target=tr.querySelector('.rtarget').value,type=tr.querySelector('.rtype').value,value=tr.querySelector('.rvalue').value.trim(),opt=tr.querySelector('.ropt').value.trim();let r={type};if(type==='css')r.selector=value;else if(type==='attribute'){r.selector=value;r.attribute='href'}else if(type==='meta')r.key=value;else if(type==='jsonld')r.path=value;else if(type==='regex')r.pattern=value;for(const part of opt.split(';').map(x=>x.trim()).filter(Boolean)){const [k,...vv]=part.split('=');const v=vv.join('=');if(k&&v)r[k.trim()]=v.trim()}(fields[target]??=[]).push(r)}return {id:($('profName').value.trim()||'custom-'+Date.now()),name:$('profName').value.trim()||'Custom',domains:$('profDomains').value.split(',').map(x=>x.trim()).filter(Boolean),use_generic:true,fields}}
+function fillProfile(p){$('profName').value=p?.name||p?.id||'';$('profDomains').value=(p?.domains||p?.match?.domains||[]).join(', ');$('ruleRows').innerHTML='';for(const [target,rules] of Object.entries(p?.fields||{}))for(const r of (Array.isArray(rules)?rules:[rules])){let value=r.selector||r.key||r.path||r.pattern||'';let option=Object.entries(r).filter(([k])=>!['type','selector','key','path','pattern'].includes(k)).map(([k,v])=>`${k}=${v}`).join('; ');ruleRow({...r,target,value,option})}}
+function renderProfileSelect(){const el=document.getElementById('profSelect');if(!el)return;el.innerHTML='<option value="">저장된 프로필</option>'+customProfiles.map((p,i)=>`<option value="${i}">${escapeHtml(p.name||p.id||'profile')}</option>`).join('')}
+
+const $=id=>document.getElementById(id);
+const uid=()=>crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36);
+const norm=s=>String(s??'').replace(/\s+/g,' ').trim();
+function field(name,type,extra={}){return {id:uid(),name,type,required:false,visible:true,searchable:true,sortable:false,...extra}}
+function defaultSchema(type){
+ if(type==='bookmark')return [field('제목','text',{required:true,sortable:true}),field('URL','url',{required:true}),field('메모','long_text'),field('태그','tag[]'),field('프로필','profile[]'),field('카테고리','category[]'),field('폴더','folder')];
+ if(type==='profile')return [field('이름','text',{required:true,sortable:true}),field('프로필 태그','tag',{visible:false}),field('설명','long_text'),field('웹사이트','url'),field('이미지','image'),field('태그','tag[]'),field('Note','long_text')];
+ if(type==='folder')return [field('이름','text',{required:true}),field('설명','long_text'),field('상위 폴더','folder')]; return [];
+}
+function makeTab(name,type,schema){return {id:uid(),name,type,icon:type==='bookmark'?'🔖':type==='profile'?'👤':'📄',layout:'grid',sort:'asc',sortField:'',search:true,filter:{},schema:JSON.parse(JSON.stringify(schema)),schemaMode:'independent'}}
+function blankDB(){const bs=defaultSchema('bookmark'),ps=defaultSchema('profile'),fs=defaultSchema('folder');const p={id:uid(),name:'새 Page',description:'',icon:'📁',ui:{layout:'grid',sort:'asc'},schemas:{bookmark:bs,profile:ps,folder:fs},tabs:[makeTab('북마크','bookmark',bs),makeTab('태그','tag',[]),makeTab('프로필','profile',ps)],data:{bookmarks:[],folders:[],tags:[],tagHeads:[],profiles:[],categories:[]}};return {schemaVersion:2,appVersion:'v2.04',main:{layout:'grid',sort:'asc'},pages:[p],activePageId:p.id}}
+function normalizeDB(x){if(!x||!Array.isArray(x.pages))return blankDB();x.schemaVersion=2;x.appVersion='v2.04';x.main??={layout:'grid',sort:'asc'};x.pages.forEach(p=>{p.id??=uid();p.name??='Page';p.schemas??={bookmark:defaultSchema('bookmark'),profile:defaultSchema('profile'),folder:defaultSchema('folder')};p.data??={};for(const k of ['bookmarks','folders','tags','tagHeads','profiles','categories'])p.data[k]??=[];p.tabs??=[];});x.activePageId??=x.pages[0].id;return x}
+function currentPage(){return db.pages.find(p=>p.id===$('pageSelect').value)||db.pages[0]}
+function currentTab(){const p=currentPage();return p?.tabs.find(t=>t.id===$('tabSelect').value)||p?.tabs.find(t=>t.type==='bookmark')||p?.tabs[0]}
+function fieldFor(tab, key){const aliases={title:['제목','title','name'],url:['URL','url','링크'],notes:['메모','notes','note','description','설명'],image:['이미지','image','thumbnail'],author:['작성자','author','저자'],date:['날짜','date','published','작성일']};const wanted=aliases[key]||[key];return (tab.schema||[]).find(f=>f.id===key)||(tab.schema||[]).find(f=>wanted.includes(f.name))}
+function profileTab(p){return p.tabs.find(t=>t.type==='profile')||p.tabs.find(t=>t.name==='프로필')}
+function findNameField(tab){return (tab?.schema||[]).find(f=>['이름','name','Name'].includes(f.name))||(tab?.schema||[]).find(f=>f.required)||tab?.schema?.[0]}
+function resolveTag(p,name,profileId=null){name=norm(name);if(!name)return null;const tags=p.data.tags, heads=p.data.tagHeads;let t=tags.find(x=>x.name===name&&x.profileId===profileId);if(t)return t.id;const id=uid();tags.push({id,name,tagHeadId:null,color:'',profileId});return id}
+function resolveCategory(p,path){const parts=String(path).split(/\s*(?:>|\/|→)\s*/).map(norm).filter(Boolean);let parent=null,last=null;for(const name of parts){let c=p.data.categories.find(x=>x.name===name&&x.parentId===parent);if(!c){c={id:uid(),name,description:'',parentId:parent};p.data.categories.push(c)}parent=c.id;last=c.id}return last}
+function resolveFolder(p,path){const parts=String(path||'').split(/\s*(?:>|\/|→)\s*/).map(norm).filter(Boolean);let parent=null,last=null;for(const name of parts){let f=p.data.folders.find(x=>x.name===name||x.data?.['이름']===name);if(!f){f={id:uid(),data:{'이름':name},name,description:'',parentId:parent};p.data.folders.push(f)}parent=f.id;last=f.id}return last}
+function resolveProfile(p,name,sourceUrl){name=norm(name);if(!name)return null;const tab=profileTab(p);if(!tab)return null;const nf=findNameField(tab);let rec=p.data.profiles.find(x=>x.data?.[nf.id]===name);if(rec)return rec.id;const data={[nf.id]:name};for(const f of tab.schema||[]){if(f.name==='웹사이트'&&sourceUrl)data[f.id]=sourceUrl}const id=uid();rec={id,data,name};p.data.profiles.push(rec);const pf=(tab.schema||[]).find(f=>f.name==='프로필 태그');if(pf)data[pf.id]=resolveTag(p,name,id);return id}
+function semanticValue(data,f){const n=f.name.toLowerCase();if(['제목','title'].includes(n))return data.title;if(['url','링크'].includes(n))return data.url;if(['메모','설명','notes','note','description'].includes(n))return data.description;if(['이미지','image','thumbnail'].includes(n))return data.image;if(['작성자','저자','author'].includes(n))return data.author;if(['날짜','작성일','date','published'].includes(n))return data.published;if(['수정일','modified'].includes(n))return data.modified;if(['사이트','site','website','웹사이트'].includes(n))return data.siteName;return data[f.id]??data[f.name]}
+function assignBookmark(p,tab,item){const d=item.data;const rec={id:uid(),data:{}};for(const f of tab.schema||[]){let raw=semanticValue(d,f);const typ=f.type;
+ if((raw==null||raw==='')&&f.name==='태그')raw=d.tags;if((raw==null||raw==='')&&f.name==='카테고리')raw=d.categories;if((raw==null||raw==='')&&f.name==='프로필')raw=d.profiles;
+ if(raw==null||raw===''||(Array.isArray(raw)&&!raw.length))continue;
+ const vals=Array.isArray(raw)?raw.map(norm).filter(Boolean):[norm(raw)];
+ if(typ==='url'||typ==='text'||typ==='long_text'||typ==='markdown'||typ==='image'||typ==='color'||typ==='enum'||typ==='date'||typ==='datetime'||typ==='duration')rec.data[f.id]=vals[0];
+ else if(typ==='number'||typ==='rating'){const n=Number(vals[0]);if(Number.isFinite(n))rec.data[f.id]=n}
+ else if(typ==='boolean')rec.data[f.id]=['1','true','yes','y','on','예'].includes(vals[0].toLowerCase());
+ else if(typ==='tag'||typ==='tag[]')rec.data[f.id]=typ.endsWith('[]')?vals.map(v=>resolveTag(p,v)):resolveTag(p,vals[0]);
+ else if(typ==='category'||typ==='category[]')rec.data[f.id]=typ.endsWith('[]')?vals.map(v=>resolveCategory(p,v)):resolveCategory(p,vals[0]);
+ else if(typ==='folder'||typ==='folder[]')rec.data[f.id]=typ.endsWith('[]')?vals.map(v=>resolveFolder(p,v)):resolveFolder(p,vals[0]);
+ else if(typ==='profile'||typ==='profile[]')rec.data[f.id]=typ.endsWith('[]')?vals.map(v=>resolveProfile(p,v,item.finalUrl||item.url)):resolveProfile(p,vals[0],item.finalUrl||item.url);
+ else if(typ==='json'){try{rec.data[f.id]=JSON.parse(vals[0])}catch{rec.data[f.id]=vals[0]}}
+ }
+ // Chrome folder is kept only if schema has a folder field and no extracted folder value.
+ const ff=(tab.schema||[]).find(f=>f.type==='folder'||f.type==='folder[]'); if(ff&&!rec.data[ff.id]&&item.folderPath)rec.data[ff.id]=ff.type==='folder[]'?[resolveFolder(p,item.folderPath)]:resolveFolder(p,item.folderPath);
+ return rec}
+function existingUrls(p,tab){const f=fieldFor(tab,'url');return new Set((p.data.bookmarks||[]).map(r=>r.data?.[f?.id]).filter(Boolean))}
+function updateSelectors(){const ps=$('pageSelect');ps.innerHTML=db.pages.map(p=>`<option value="${p.id}">${escapeHtml(p.name||'Page')}</option>`).join('');const p=currentPage();$('tabSelect').innerHTML=(p?.tabs||[]).filter(t=>t.type==='bookmark'||(t.schema||[]).some(f=>f.type==='url')).map(t=>`<option value="${t.id}">${escapeHtml(t.name||'Tab')}</option>`).join('');$('startBtn').disabled=!bookmarks.length}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function parseTxt(text){const out=[];const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);let pending='';for(const line of lines){const matches=[...line.matchAll(/https?:\/\/[^\s<>"']+/g)];if(matches.length){for(const m of matches){const url=m[0].replace(/[),.;]+$/,'');out.push({title:pending||url,url,folderPath:''});pending=''}}else if(!/^\s*(#|\[.*\])/.test(line))pending=line}return dedupeBookmarks(out)}
+function parseChromeHtml(text){const doc=new DOMParser().parseFromString(text,'text/html');const out=[];
+  // Chrome's exported bookmark HTML commonly contains <DL><p><DT>...</DT></p></DL>.
+  // Do not depend on :scope or on the exact wrapper structure; read every bookmark <A> directly.
+  doc.querySelectorAll('a[href]').forEach(a=>{
+    const href=a.getAttribute('href')||a.href||'';
+    if(!/^https?:\/\//i.test(href)) return;
+    const title=(a.textContent||'').replace(/\s+/g,' ').trim() || href;
+    // Recover folder names from preceding H3 elements when possible. The title itself is always the hyperlink text.
+    const folders=[];
+    let n=a.parentElement;
+    while(n){
+      let prev=n.previousElementSibling;
+      while(prev){
+        if(prev.tagName==='H3'){const name=(prev.textContent||'').replace(/\s+/g,' ').trim();if(name) folders.unshift(name);break;}
+        prev=prev.previousElementSibling;
+      }
+      n=n.parentElement;
+    }
+    out.push({title,url:href,folderPath:folders.join(' > ')});
+  });
+  return dedupeBookmarks(out)
+}
+async function parseDocx(file){const zip=await JSZip.loadAsync(file);const xml=await zip.file('word/document.xml').async('text');const relxml=zip.file('word/_rels/document.xml.rels')?await zip.file('word/_rels/document.xml.rels').async('text'):'';const xd=new DOMParser().parseFromString(xml,'application/xml');const rd=new DOMParser().parseFromString(relxml||'<Relationships/>','application/xml');const rels={};Array.from(rd.getElementsByTagName('Relationship')).forEach(r=>{rels[r.getAttribute('Id')]=r.getAttribute('Target')});const out=[];const links=Array.from(xd.getElementsByTagNameNS('*','hyperlink'));for(const h of links){const rid=h.getAttribute('r:id')||h.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');const target=rels[rid];const title=[...h.getElementsByTagNameNS('*','t')].map(x=>x.textContent).join('').trim();if(target&&/^https?:/i.test(target))out.push({title:title||target,url:target,folderPath:''})}return dedupeBookmarks(out)}
+function dedupeBookmarks(xs){const m=new Map();for(const x of xs){const u=norm(x.url);if(/^https?:\/\//i.test(u)&&!m.has(u))m.set(u,{title:norm(x.title)||u,url:u,folderPath:norm(x.folderPath||'')})}return [...m.values()]}
+async function readBookmarkFile(file){const name=file.name.toLowerCase();const text=await file.text();if(name.endsWith('.docx'))return parseDocx(file);if(name.endsWith('.html')||name.endsWith('.htm'))return parseChromeHtml(text);return parseTxt(text)}
+function renderResults(){const tb=$('results');tb.innerHTML=results.map(r=>`<tr><td>${escapeHtml(r.title||r.url)}</td><td><a href="${escapeHtml(r.finalUrl||r.url)}" target="_blank" rel="noreferrer">${escapeHtml(r.url)}</a></td><td><span class="pill ${r.status==='success'||r.status==='added'?'ok':r.status==='duplicate'?'warn':'bad'}">${escapeHtml(r.status)}</span></td><td>${escapeHtml(r.profile||'')}</td><td>${escapeHtml(r.error||'')}</td></tr>`).join('');$('countAll').textContent=results.length;$('countOk').textContent=results.filter(x=>x.status==='added'||x.status==='success').length;$('countDup').textContent=results.filter(x=>x.status==='duplicate').length;$('countErr').textContent=results.filter(x=>x.status==='error').length}
+async function start(){const p=currentPage(),tab=currentTab();if(!p||!tab||!bookmarks.length)return;results=[];renderResults();const seen=existingUrls(p,tab);const items=bookmarks.filter(x=>!$('dedupe').checked||!seen.has(x.url));if($('dedupe').checked && items.length===0){$('progress').textContent='모든 항목이 기존 URL과 중복됩니다.';return}
+ let done=0;const batchSize=10;for(let i=0;i<items.length;i+=batchSize){const batch=items.slice(i,i+batchSize);$('progress').textContent=`추출 중… ${done}/${items.length}`;try{const res=await fetch('/api/extract',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:batch.map(x=>({url:x.url,title:x.title})),customProfiles})});const json=await res.json();if(!res.ok)throw new Error(json.error||`HTTP ${res.status}`);for(const r of json.results){const source=bookmarks.find(x=>x.url===r.url)||{};if(r.status==='success'){if($('dedupe').checked&&seen.has(r.finalUrl||r.url)){r.status='duplicate'}else{if($('fallbackTitle').checked&&(!r.data?.title||r.data.title===r.data.url))r.data.title=source.title;r.folderPath=source.folderPath;const rec=assignBookmark(p,tab,r);p.data.bookmarks.push(rec);const uf=fieldFor(tab,'url');if(uf&&rec.data[uf.id])seen.add(rec.data[uf.id]);r.status='added'}}results.push(r)}}catch(e){for(const x of batch)results.push({url:x.url,title:x.title,status:'error',error:e.message})}done+=batch.length;renderResults();}
+db.activePageId=p.id;$('progress').textContent=`완료: ${done}/${items.length}`;$('downloadBtn').disabled=false}
+$('bookmarkFile').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{bookmarks=await readBookmarkFile(f);$('bookmarkInfo').textContent=`${f.name}: ${bookmarks.length.toLocaleString()}개 URL을 찾았습니다.`;updateSelectors()}catch(err){$('bookmarkInfo').textContent='읽기 실패: '+err.message}});
+$('dbFile').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{db=normalizeDB(JSON.parse(await f.text()));$('dbInfo').textContent=`${f.name}: ${db.pages.length}개 Page`;updateSelectors()}catch(err){$('dbInfo').textContent='DB 읽기 실패: '+err.message}});
+$('pageSelect').addEventListener('change',updateSelectors);$('tabSelect').addEventListener('change',()=>{});$('startBtn').addEventListener('click',start);
+$('downloadBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tagmark-extracted-v1.05.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
+const drop=$('drop');['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',async ev=>{const f=ev.dataTransfer.files?.[0];if(!f)return;try{bookmarks=await readBookmarkFile(f);$('bookmarkInfo').textContent=`${f.name}: ${bookmarks.length.toLocaleString()}개 URL을 찾았습니다.`;updateSelectors()}catch(err){$('bookmarkInfo').textContent='읽기 실패: '+err.message}});
+$('addRuleBtn').addEventListener('click',()=>ruleRow());
+$('newProfBtn').addEventListener('click',()=>fillProfile({}));
+$('saveProfBtn').addEventListener('click',()=>{const p=profileFromEditor();const i=customProfiles.findIndex(x=>x.id===p.id||x.name===p.name);if(i>=0)customProfiles[i]=p;else customProfiles.push(p);saveCustomProfiles();$('profSelect').value=String(customProfiles.findIndex(x=>x.id===p.id));alert('사이트 프로필을 저장했습니다.')});
+$('profSelect').addEventListener('change',e=>{if(e.target.value!=='')fillProfile(customProfiles[Number(e.target.value)])});
+$('exportProfBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({version:'v1.05',profiles:customProfiles},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tagmark-extractor-profiles-v1.05.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
+$('importProfFile').addEventListener('change',async e=>{try{const j=JSON.parse(await e.target.files[0].text());const ps=Array.isArray(j)?j:j.profiles;if(!Array.isArray(ps))throw new Error('profiles 배열이 없습니다.');customProfiles=ps;saveCustomProfiles();alert(`${ps.length}개 프로필을 불러왔습니다.`)}catch(err){alert('불러오기 실패: '+err.message)}});
+$('testProfBtn').addEventListener('click',async()=>{const url=$('testUrl').value.trim();if(!url)return;const out=$('testOut');out.classList.remove('hidden');out.textContent='테스트 중…';try{const res=await fetch('/api/extract',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:[{url,title:'테스트'}],profileOverride:profileFromEditor()})});const j=await res.json();out.textContent=JSON.stringify(j,null,2)}catch(e){out.textContent='실패: '+e.message}});
+db=blankDB();updateSelectors();loadCustomProfiles();ruleRow();
+</script>
+</body></html>
